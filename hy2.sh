@@ -25,15 +25,27 @@ esac
 
 echo "检测到系统架构为: $ARCH，将下载对应的 Hysteria 客户端..."
 
-generate_random_password() {
-  dd if=/dev/random bs=18 count=1 status=none | base64
+# 交互式输入端口或端口范围
+read -p "请输入 Hysteria 2 监听端口或端口范围 [默认 31061] (例如: 31061 或 31061-31078): " PORT_INPUT
+PORT_INPUT=${PORT_INPUT:-31061}
+
+# 提取用于 URL 链接的第一个端口
+FIRST_PORT=$(echo "$PORT_INPUT" | cut -d'-' -f1)
+
+# 修改密码生成逻辑为 UUID 格式
+generate_uuid() {
+    if [ -f /proc/sys/kernel/random/uuid ]; then
+        cat /proc/sys/kernel/random/uuid
+    else
+        od -An -N16 -x /dev/urandom | tr -d ' ' | sed 's/\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)/\1\2\3\4-\5\6-\7\8-\9\10-\11\12\13\14\15\16/'
+    fi
 }
 
-GENPASS="$(generate_random_password)"
+GENPASS="$(generate_uuid)"
 
 echo_hysteria_config_yaml() {
   cat << EOF
-listen: :31061
+listen: :$PORT_INPUT
 
 #有域名，使用CA证书
 #acme:
@@ -102,14 +114,14 @@ service hysteria start
 # 3. 自动获取公网 IP 与证书 SHA256 指纹用于拼装 URL
 SERVER_IP=$(curl -s ifconfig.me || wget -qO- ifconfig.me || echo "127.0.0.1")
 CERT_SHA256=$(openssl x509 -in /etc/hysteria/server.crt -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':')
-HY_URL="hysteria2://$GENPASS@$SERVER_IP:31061?insecure=1&pinSHA256=$CERT_SHA256&sni=bing.com#hysteria2-alpine-$SERVER_IP"
+HY_URL="hysteria2://$GENPASS@$SERVER_IP:$FIRST_PORT?insecure=1&pinSHA256=$CERT_SHA256&sni=bing.com#hysteria2-alpine-$SERVER_IP"
 
 echo "------------------------------------------------------------------------"
 echo "hysteria2 已经安装完成"
 echo "当前架构支持： $HY_ARCH"
-echo "默认端口： 31061"
-echo "密码为：   $GENPASS"
-echo "SNI为：    bing.com"
+echo "监听端口/范围： $PORT_INPUT"
+echo "UUID 密码为： $GENPASS"
+echo "SNI为：     bing.com"
 echo "配置文件： /etc/hysteria/config.yaml"
 echo ""
 echo "url链接为："
@@ -118,5 +130,7 @@ echo ""
 echo "已经随系统自动启动"
 echo "看状态 service hysteria status"
 echo "重启 service hysteria restart"
-echo "请享用。"
 echo "------------------------------------------------------------------------"
+echo "自签名证书 /etc/hysteria/server.crt 内容如下："
+echo "------------------------------------------------------------------------"
+cat /etc/hysteria/server.crt
