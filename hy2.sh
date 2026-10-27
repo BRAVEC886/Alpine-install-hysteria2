@@ -70,23 +70,21 @@ masquerade:
 EOF
 }
 
-echo_hysteria_autoStart(){
-  cat << EOF
+echo_hysteria_autoStart() {
+    cat <<'EOF'
 #!/sbin/openrc-run
 
 name="hysteria"
+description="Hysteria 2 server"
 
 command="/usr/local/bin/hysteria"
 command_args="server --config /etc/hysteria/config.yaml"
-
-pidfile="/var/run/${name}.pid"
-
 command_background="yes"
+pidfile="/run/hysteria.pid"
 
 depend() {
-        need networking
+    after networking
 }
-
 EOF
 }
 
