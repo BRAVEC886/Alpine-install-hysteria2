@@ -47,6 +47,12 @@ echo_hysteria_config_yaml() {
   cat << EOF
 listen: :$PORT_INPUT
 
+#有域名，使用CA证书
+#acme:
+#  domains:
+#    - test.heybro.bid #你的域名，需要先解析到服务器ip
+#  email: xxx@gmail.com
+
 #使用自签名证书
 tls:
   cert: /etc/hysteria/server.crt
@@ -65,7 +71,7 @@ EOF
 }
 
 echo_hysteria_autoStart(){
-  cat << 'EOF'
+  cat << EOF
 #!/sbin/openrc-run
 
 name="hysteria"
@@ -78,8 +84,9 @@ pidfile="/var/run/${name}.pid"
 command_background="yes"
 
 depend() {
-    after local
+        need networking
 }
+
 EOF
 }
 
@@ -98,14 +105,13 @@ echo_hysteria_config_yaml > "/etc/hysteria/config.yaml"
 # 写自启动
 echo_hysteria_autoStart > "/etc/init.d/hysteria"
 chmod +x /etc/init.d/hysteria
-
 # 启用自启动
-rc-update add hysteria default
+rc-update add hysteria
 
 # 启动服务
 service hysteria start
 
-# 自动获取公网 IP 与证书 SHA256 指纹用于拼装 URL
+# 3. 自动获取公网 IP 与证书 SHA256 指纹用于拼装 URL
 SERVER_IP=$(curl -s ifconfig.me || wget -qO- ifconfig.me || echo "127.0.0.1")
 CERT_SHA256=$(openssl x509 -in /etc/hysteria/server.crt -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':')
 HY_URL="hysteria2://$GENPASS@$SERVER_IP:$FIRST_PORT?insecure=1&pinSHA256=$CERT_SHA256&sni=bing.com#hysteria2-alpine-$SERVER_IP"
@@ -115,7 +121,7 @@ echo "hysteria2 已经安装完成"
 echo "当前架构支持： $HY_ARCH"
 echo "监听端口/范围： $PORT_INPUT"
 echo "UUID 密码为： $GENPASS"
-echo "SNI为：      bing.com"
+echo "SNI为：     bing.com"
 echo "配置文件： /etc/hysteria/config.yaml"
 echo ""
 echo "url链接为："
