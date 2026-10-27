@@ -85,7 +85,7 @@ chmod +x /usr/local/bin/hysteria
 mkdir -p /etc/hysteria/
 
 # 生成自签名证书
-openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) -keyout /etc/hysteria/server.key -out /etc/hysteria/server.crt -subj "/CN=bing.com" -days 36500
+openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) -keyout /etc/hysteria/server.key -out /etc/hysteria/server.crt -subj "/CN=bing.com" -addext "subjectAltName = DNS:bing.com" -days 36500
 
 # 写配置文件
 echo_hysteria_config_yaml > "/etc/hysteria/config.yaml"
@@ -99,7 +99,7 @@ rc-update add hysteria
 # 启动服务
 service hysteria start
 
-# 自动获取公网 IP 与证书 SHA256 指纹用于拼装 URL
+# 3. 自动获取公网 IP 与证书 SHA256 指纹用于拼装 URL
 SERVER_IP=$(curl -s ifconfig.me || wget -qO- ifconfig.me || echo "127.0.0.1")
 CERT_SHA256=$(openssl x509 -in /etc/hysteria/server.crt -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':')
 HY_URL="hysteria2://$GENPASS@$SERVER_IP:31061?insecure=1&pinSHA256=$CERT_SHA256&sni=bing.com#hysteria2-alpine-$SERVER_IP"
