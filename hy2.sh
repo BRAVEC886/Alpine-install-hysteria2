@@ -6,7 +6,20 @@ fi
 
 set -e
 
+CAP_HEX=$(awk '/^CapEff:/ {print $2}' /proc/self/status)
+HAS_NET_ADMIN=0
+if [ -n "$CAP_HEX" ] && (( (16#$CAP_HEX & 0x1000) != 0 )); then
+    HAS_NET_ADMIN=1
+    echo "当前进程具有 CAP_NET_ADMIN：将安装端口跳跃所需的网络工具，并允许输入端口范围。"
+else
+    echo "当前进程缺少 CAP_NET_ADMIN：跳过端口跳跃所需的网络工具，仅允许输入单个端口。"
+fi
+
 apk add --no-cache wget curl openssl openrc coreutils
+
+if [ "$HAS_NET_ADMIN" -eq 1 ]; then
+    apk add --no-cache iptables ip6tables
+fi
 
 ARCH=$(uname -m)
 case "$ARCH" in
@@ -33,15 +46,6 @@ if ! /usr/local/bin/hysteria version >/dev/null 2>&1; then
     exit 1
 fi
 echo "Hysteria 下载完成。"
-
-CAP_HEX=$(awk '/^CapEff:/ {print $2}' /proc/self/status)
-HAS_NET_ADMIN=0
-if [ -n "$CAP_HEX" ] && (( (16#$CAP_HEX & 0x1000) != 0 )); then
-    HAS_NET_ADMIN=1
-    echo "当前进程具有 CAP_NET_ADMIN：允许输入单个端口或端口范围。"
-else
-    echo "当前进程缺少 CAP_NET_ADMIN：仅允许输入单个端口。"
-fi
 
 DEFAULT_PORT=$(shuf -i 10000-60000 -n 1)
 while true; do
